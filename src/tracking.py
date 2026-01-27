@@ -29,7 +29,7 @@ def update_tracks(detections):
             # center of last frame
             tx, ty = track["center"]
             # distance b/w last frame center and current frame center
-            dist = math.dist((cx, cy), (tx, ty))
+            dist = geometry.get_distance(cx, cy, tx, ty)
 
             if dist < best_distance:
                 best_distance = dist
