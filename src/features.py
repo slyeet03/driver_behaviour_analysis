@@ -33,28 +33,11 @@ def calc_acc(speeds, accelerations):
 
     return max_acc
 
-def detect_oscillation(delta_theta):
-    # remove small changes
-    significant_changes = delta_theta[np.abs(delta_theta) > 0.05]
-    
-    if len(significant_changes) < 2:  
-        return False
-    
-    # sign changes
-    sign_changes = np.sum(np.diff(np.sign(significant_changes)) != 0)
-    oscillation_rate = sign_changes / len(significant_changes)
-    
-    # variance
-    variance = np.std(significant_changes)
-    
-    # combined score
-    oscillation_score = oscillation_rate * variance
-    
-    return oscillation_score > 0.15
 
 def calc_dir_change(history):
     theta = []
     del_theta = []
+    count = 0
 
     for i in range(len(history)-2): 
         x1 = history[i][0]
@@ -71,9 +54,11 @@ def calc_dir_change(history):
         delta = (delta + math.pi) % (2 * math.pi) - math.pi
         del_theta.append(delta)
     
-    change = detect_oscillation(np.array(del_theta)) 
-    return change
-
+    for theta in del_theta:
+        if theta > config.THRESHOLD_ANGLE:
+            count+=1
+        
+    return count
 
 
 def calc_path_length(history):
@@ -90,12 +75,23 @@ def calc_path_length(history):
 
     return path_length
 
+def calc_displacement(history):
+    last_idx = len(history)-1
+    x1 = history[0][0]
+    y1 = history[0][1]
+    x2 = history[last_idx][0]
+    y2 = history[last_idx][1]
+
+    displacement = geometry.get_distance(x1, y1, x2, y2)
+
+    return displacement 
+
 def extract_features(tracks):
     for track in tracks:
         history = track["history"]
         speeds = []
         accelerations = []
-        direction_change = False
+        direction_change_count = 0
         path_length = 0
         
         # skip if the history has less that two data of speed
@@ -105,15 +101,17 @@ def extract_features(tracks):
         avg_speed, max_speed = calc_speed(history, speeds)
         max_acc = calc_acc(speeds, accelerations)
         path_length = calc_path_length(history)
-        direction_change = calc_dir_change(history)
+        direction_change_count = calc_dir_change(history)
+        displacement = calc_displacement(history)
 
         features.append({
             "id": track["id"],
             "avg_speed": avg_speed,
             "max_speed": max_speed,
             "acceleration": max_acc,
-            "direction_change": direction_change,
+            "direction_change_count": direction_change_count,
             "path_length": path_length,
+            "displacement": displacement
         })
             
 

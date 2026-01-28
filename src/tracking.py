@@ -1,5 +1,4 @@
 from utils import geometry, config
-import math
 
 tracks = []
 NEXT_TRACK_ID = 0
