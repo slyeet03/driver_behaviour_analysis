@@ -18,45 +18,100 @@ def compute_thresholds(features):
     acc_high = accelerations[acc_idx]
 
     thresholds = []
-    thresholds.append({speed_high, acc_high})
+    thresholds["speed"] = speed_high
+    thresholds["acc"] = acc_high
 
     return thresholds
 
-def detect_behaviours(features, thresholds):
-    flags = []
+def detect_behaviours(feature, thresholds):
+    flag = []
+    flag_count = 0
+
+    avg_speed = feature["avg_speed"]
+    acceleration = feature["acceleration"]
+    direction_change_count = feature["direction_change_count"]
+    path_length = feature["path_length"]
+    displacement = feature["displacement"]
+        
+    path_ratio = path_length / displacement
+
+    speed_high = False
+    acc_high = False
+    erratic = False
+
+    if avg_speed > thresholds["speed"]:
+        speed_high = True
+        flag_count += 1
+        
+    if acceleration > thresholds["acc"]:
+        acc_high = True
+        flag_count += 1
+
+    if path_ratio > config.PATH_RATIO_HIGH:
+        if direction_change_count <= config.LOW_DIR_CHANGE:
+            erratic = False
+        elif direction_change_count >= config.HIGH_DIR_CHANGE:
+            erratic = True
+            flag_count += 1
+        
+    flag["speeding"] = speed_high
+    flag["aggressive_acc"] = acc_high
+    flag["erratic"] = erratic
+
+
+    return flag, flag_count
+
+def compute_score(flag):
+    score = 12
+
+    speeding = flag["speeding"]
+    aggressive_acc = flag["aggressive_acc"]
+    erratic = flag["erratic"]
+
+    if speeding:
+        score -= config.SPEED_PENALTY
+    
+    if aggressive_acc:
+        score -= config.ACC_PENALTY
+
+    if erratic:
+        score -= config.ERRATIC_PENALTY
+
+    return score
+
+def assign_label(score):
+    label = ""
+
+    if score >= 10:
+        label = "Smooth Driver"
+    elif score >= 6:
+        label = "Moderate Driver"
+    else:
+        label = "Risky Driver"
+
+    return label
+
+def analyze_behaviour(features):
+    thresholds = compute_thresholds(features)
+
+    results = []
 
     for feature in features:
-        avg_speed = feature["avg_speed"]
-        acceleration = feature["acceleration"]
-        direction_change_count = feature["direction_change_count"]
-        path_length = feature["path_length"]
-        displacement = feature["displacement"]
-        
-        path_ratio = path_length / displacement
+        flag, flag_count = detect_behaviours(feature, thresholds)
+        score = compute_score(flag)
+        label = assign_label(score)
 
-        speed_high = False
-        acc_high = False
-        erratic = False
-
-        if avg_speed > thresholds[0]:
-            speed_high = True
-        
-        if acceleration > thresholds[1]:
-            acc_high = True
-
-        if path_ratio > config.PATH_RATIO_HIGH:
-            if direction_change_count <= 3:
-                erratic = False
-            elif direction_change_count >= 6:
-                erratic = True
-        
-        flags.append({
-            "speeding": speed_high,
-            "aggressive_acc": acc_high,
-            "erratic": erratic
+        results.append({
+            "id": feature["id"],
+            "score": score,
+            "label": label,
+            "behaviors": flag_count
         })
 
-    return flags
+    return results
 
+
+
+    
             
         
